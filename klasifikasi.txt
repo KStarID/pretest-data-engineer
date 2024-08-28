@@ -1,0 +1,39 @@
+id: klasifikasi_analisis
+namespace: kstarid
+
+inputs:
+  - id: file
+    type: FILE
+
+tasks:
+  - id: analisis
+    type: io.kestra.plugin.scripts.python.Script
+    inputFiles:
+      input_csv: "{{ inputs.file }}"
+    beforeCommands:
+      - pip install pandas
+    script: |
+      import pandas as pd
+
+      df = pd.read_csv('{{ inputs.file }}')
+
+      status = []
+      def sentiment(rating):
+          if pd.isna(rating):
+              return 'Unknown'
+          rating = float(rating)
+          if rating >= 4:
+              status.append('Positive')
+          elif rating >= 3:
+              status.append('Neutral')
+          else:
+              status.append('Negative')
+
+      df['rating'] = df['rating'].apply(sentiment)
+
+      df['klasifikasi'] = status
+
+      df[['reviewContent', 'name', 'klasifikasi']].to_csv('rating_klasifikasi.csv', index=False)
+
+    outputFiles:
+      - "*.csv"

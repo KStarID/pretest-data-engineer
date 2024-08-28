@@ -1,0 +1,42 @@
+id: cleaning_data
+namespace: kstarid
+
+inputs:
+  - id: file
+    type: FILE
+
+tasks:
+  - id: cleaning_data
+    type: io.kestra.plugin.scripts.python.Script
+    inputFiles:
+      input_csv: "{{ inputs.file }}"
+    beforeCommands:
+      - pip install pandas
+    script: |
+      import pandas as pd
+      import re
+
+      df = pd.read_csv('{{ inputs.file }}', na_values=['null'])
+
+      df = df[['reviewContent', 'name', 'rating']]
+
+      df = df.drop_duplicates(subset=['reviewContent'])
+      
+      df = df.dropna()
+
+      def clean_text(text):
+        if pd.isna(text):
+            return ''
+        text = text.lower()
+        text = re.sub(r'https?://\S+', ' ', text)
+        text = re.sub(r'[^A-Za-z0-9 ]', ' ', text)
+        text = re.sub(r'\s+', ' ', text).strip()
+        return text
+
+      df['reviewContent'] = df['reviewContent'].apply(clean_text)
+
+      df = df.dropna(subset=['reviewContent'])
+
+      df.to_csv('data_cleaned.csv', index=False)
+    outputFiles:
+      - '*.csv'
